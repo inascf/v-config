@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>代理配置转换工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            backdrop-filter: blur(10px);
+        }
+        
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 30px;
+            font-size: 2.5em;
+            font-weight: 300;
+        }
+        
+        .converter-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+        
+        .input-section, .output-section {
+            display: flex;
+            flex-direction: column;
+        }
+        
+        label {
+            font-weight: 600;
+            margin-bottom: 10px;
+            color: #555;
+            font-size: 1.1em;
+        }
+        
+        textarea {
+            padding: 15px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            min-height: 200px;
+            transition: border-color 0.3s ease;
+        }
+        
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+        
+        .button-group {
+            display: flex;
+            gap: 15px;
+            justify-content: center;
+            margin: 20px 0;
+        }
+        
+        button {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 25px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .convert-btn {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+        }
+        
+        .convert-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.3);
+        }
+        
+        .clear-btn {
+            background: #f44336;
+            color: white;
+        }
+        
+        .clear-btn:hover {
+            background: #d32f2f;
+            transform: translateY(-2px);
+        }
+        
+        .copy-btn {
+            background: #4CAF50;
+            color: white;
+        }
+        
+        .copy-btn:hover {
+            background: #45a049;
+            transform: translateY(-2px);
+        }
+        
+        .protocol-info {
+            background: #f8f9fa;
+            border-left: 4px solid #667eea;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 0 10px 10px 0;
+        }
+        
+        .protocol-info h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        
+        .protocol-examples {
+            background: #fff;
+            border: 1px solid #e0e0e0;
+            border-radius: 10px;
+            padding: 15px;
+            margin-top: 10px;
+        }
+        
+        .example-item {
+            margin-bottom: 10px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            word-break: break-all;
+            background: #f5f5f5;
+            padding: 8px;
+            border-radius: 5px;
+        }
+        
+        .error {
+            color: #f44336;
+            background: #ffebee;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        .success {
+            color: #4CAF50;
+            background: #e8f5e8;
+            padding: 10px;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            .converter-section {
+                grid-template-columns: 1fr;
+            }
+            
+            .button-group {
+                flex-direction: column;
+            }
+            
+            button {
+                width: 100%;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔄 代理配置转换工具</h1>
+        
+        <div class="converter-section">
+            <div class="input-section">
+                <label for="input-config">输入配置链接或JSON：</label>
+                <textarea id="input-config" placeholder="粘贴你的 VLESS、VMess、Shadowsocks 等配置链接..."></textarea>
+            </div>
+            
+            <div class="output-section">
+                <label for="output-config">V2Ray JSON 配置：</label>
+                <textarea id="output-config" readonly placeholder="转换后的 JSON 配置将显示在这里..."></textarea>
+            </div>
+        </div>
+        
+        <div class="button-group">
+            <button class="convert-btn" onclick="convertConfig()">🔄 转换配置</button>
+            <button class="clear-btn" onclick="clearAll()">🗑️ 清空</button>
+            <button class="copy-btn" onclick="copyResult()">📋 复制结果</button>
+        </div>
+        
+        <div id="message"></div>
+        
+        <div class="protocol-info">
+            <h3>📋 支持的协议格式：</h3>
+            <div class="protocol-examples">
+                <div class="example-item"><strong>VLESS:</strong> vless://uuid@server:port?param=value#name</div>
+                <div class="example-item"><strong>VMess:</strong> vmess://base64EncodedJson</div>
+                <div class="example-item"><strong>Shadowsocks:</strong> ss://method:password@server:port#name</div>
+                <div class="example-item"><strong>Trojan:</strong> trojan://password@server:port?param=value#name</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        function showMessage(text, type = 'success') {
+            const messageEl = document.getElementById('message');
+            messageEl.innerHTML = `<div class="${type}">${text}</div>`;
+            setTimeout(() => messageEl.innerHTML = '', 5000);
+        }
+
+        function parseURL(url) {
+            try {
+                const urlObj = new URL(url);
+                const params = new URLSearchParams(urlObj.search);
+                const paramObj = {};
+                for (const [key, value] of params) {
+                    paramObj[key] = value;
+                }
+                return {
+                    protocol: urlObj.protocol.slice(0, -1),
+                    username: urlObj.username,
+                    password: urlObj.password,
+                    hostname: urlObj.hostname,
+                    port: urlObj.port,
+                    pathname: urlObj.pathname,
+                    params: paramObj,
+                    hash: urlObj.hash.slice(1)
+                };
+            } catch (e) {
+                throw new Error('无效的URL格式');
+            }
+        }
+
+        function parseVless(url) {
+            const parsed = parseURL(url);
+            const uuid = parsed.username;
+            const server = parsed.hostname;
+            const port = parseInt(parsed.port) || 443;
+            
+            const config = {
+                protocol: "vless",
+                settings: {
+                    vnext: [{
+                        address: server,
+                        port: port,
+                        users: [{
+                            id: uuid,
+                            encryption: parsed.params.encryption || "none"
+                        }]
+                    }]
+                },
+                streamSettings: {
+                    network: parsed.params.type || "tcp"
+                }
+            };
+
+            // 处理传输层配置
+            if (parsed.params.security === 'tls') {
+                config.streamSettings.security = 'tls';
+                config.streamSettings.tlsSettings = {
+                    serverName: parsed.params.sni || parsed.params.host || server
+                };
+            }
+
+            // WebSocket 配置
+            if (parsed.params.type === 'ws') {
+                config.streamSettings.wsSettings = {
+                    path: parsed.params.path || '/',
+                    headers: {}
+                };
+                if (parsed.params.host) {
+                    config.streamSettings.wsSettings.headers.Host = parsed.params.host;
+                }
+            }
+
+            // gRPC 配置
+            if (parsed.params.type === 'grpc') {
+                config.streamSettings.grpcSettings = {
+                    serviceName: parsed.params.serviceName || ''
+                };
+            }
+
+            return config;
+        }
+
+        function parseVmess(url) {
+            try {
+                const base64Data = url.replace('vmess://', '');
+                const jsonStr = atob(base64Data);
+                const vmessData = JSON.parse(jsonStr);
+                
+                const config = {
+                    protocol: "vmess",
+                    settings: {
+                        vnext: [{
+                            address: vmessData.add,
+                            port: parseInt(vmessData.port),
+                            users: [{
+                                id: vmessData.id,
+                                alterId: parseInt(vmessData.aid) || 0,
+                                security: vmessData.scy || "auto"
+                            }]
+                        }]
+                    },
+                    streamSettings: {
+                        network: vmessData.net || "tcp"
+                    }
+                };
+
+                if (vmessData.tls === 'tls') {
+                    config.streamSettings.security = 'tls';
+                    config.streamSettings.tlsSettings = {
+                        serverName: vmessData.sni || vmessData.host || vmessData.add
+                    };
+                }
+
+                if (vmessData.net === 'ws') {
+                    config.streamSettings.wsSettings = {
+                        path: vmessData.path || '/',
+                        headers: {}
+                    };
+                    if (vmessData.host) {
+                        config.streamSettings.wsSettings.headers.Host = vmessData.host;
+                    }
+                }
+
+                return config;
+            } catch (e) {
+                throw new Error('VMess 配置解析失败: ' + e.message);
+            }
+        }
+
+        function parseShadowsocks(url) {
+            const parsed = parseURL(url);
+            let method, password;
+            
+            if (parsed.username && parsed.password) {
+                method = parsed.username;
+                password = parsed.password;
+            } else {
+                // 处理 ss://method:password@server:port 格式
+                const userInfo = atob(parsed.username);
+                const [m, p] = userInfo.split(':');
+                method = m;
+                password = p;
+            }
+
+            return {
+                protocol: "shadowsocks",
+                settings: {
+                    servers: [{
+                        address: parsed.hostname,
+                        port: parseInt(parsed.port),
+                        method: method,
+                        password: password
+                    }]
+                }
+            };
+        }
+
+        function parseTrojan(url) {
+            const parsed = parseURL(url);
+            
+            const config = {
+                protocol: "trojan",
+                settings: {
+                    servers: [{
+                        address: parsed.hostname,
+                        port: parseInt(parsed.port) || 443,
+                        password: parsed.username
+                    }]
+                },
+                streamSettings: {
+                    network: parsed.params.type || "tcp",
+                    security: "tls",
+                    tlsSettings: {
+                        serverName: parsed.params.sni || parsed.hostname
+                    }
+                }
+            };
+
+            if (parsed.params.type === 'ws') {
+                config.streamSettings.wsSettings = {
+                    path: parsed.params.path || '/',
+                    headers: {}
+                };
+                if (parsed.params.host) {
+                    config.streamSettings.wsSettings.headers.Host = parsed.params.host;
+                }
+            }
+
+            return config;
+        }
+
+        function createV2rayConfig(outbound) {
+            return {
+                log: {
+                    loglevel: "warning"
+                },
+                inbounds: [
+                    {
+                        port: 1080,
+                        protocol: "socks",
+                        settings: {
+                            auth: "noauth",
+                            udp: true
+                        }
+                    },
+                    {
+                        port: 8080,
+                        protocol: "http"
+                    }
+                ],
+                outbounds: [
+                    {
+                        ...outbound,
+                        tag: "proxy"
+                    },
+                    {
+                        protocol: "freedom",
+                        tag: "direct"
+                    }
+                ],
+                routing: {
+                    rules: [
+                        {
+                            type: "field",
+                            outboundTag: "direct",
+                            domain: ["geosite:private"]
+                        },
+                        {
+                            type: "field",
+                            outboundTag: "direct",
+                            ip: ["geoip:private"]
+                        }
+                    ]
+                }
+            };
+        }
+
+        function convertConfig() {
+            const input = document.getElementById('input-config').value.trim();
+            const output = document.getElementById('output-config');
+            
+            if (!input) {
+                showMessage('请输入配置链接', 'error');
+                return;
+            }
+
+            try {
+                let outbound;
+                
+                if (input.startsWith('vless://')) {
+                    outbound = parseVless(input);
+                } else if (input.startsWith('vmess://')) {
+                    outbound = parseVmess(input);
+                } else if (input.startsWith('ss://')) {
+                    outbound = parseShadowsocks(input);
+                } else if (input.startsWith('trojan://')) {
+                    outbound = parseTrojan(input);
+                } else if (input.startsWith('{')) {
+                    // 可能是已经是JSON格式
+                    JSON.parse(input); // 验证JSON格式
+                    output.value = JSON.stringify(JSON.parse(input), null, 2);
+                    showMessage('JSON 格式验证通过并已格式化');
+                    return;
+                } else {
+                    throw new Error('不支持的协议格式');
+                }
+
+                const v2rayConfig = createV2rayConfig(outbound);
+                output.value = JSON.stringify(v2rayConfig, null, 2);
+                showMessage('配置转换成功！');
+                
+            } catch (error) {
+                showMessage('转换失败: ' + error.message, 'error');
+                console.error('转换错误:', error);
+            }
+        }
+
+        function clearAll() {
+            document.getElementById('input-config').value = '';
+            document.getElementById('output-config').value = '';
+            document.getElementById('message').innerHTML = '';
+        }
+
+        function copyResult() {
+            const output = document.getElementById('output-config');
+            if (!output.value) {
+                showMessage('没有可复制的内容', 'error');
+                return;
+            }
+            
+            output.select();
+            document.execCommand('copy');
+            showMessage('配置已复制到剪贴板！');
+        }
+
+        // 示例配置按钮
+        function loadExample() {
+            const exampleVless = 'vless://6ff4852a-de6e-423e-8561-3131e63120c6@www.speedtest.net:2096?path=/wrvyqows&security=tls&encryption=none&host=638879176706545587.amsterdam-prx-dnraaal.info&type=ws&sni=638879176706545587.amsterdam-prx-dnraaal.info#🇬🇧[openproxylist.com] vless-GB#26';
+            document.getElementById('input-config').value = exampleVless;
+        }
+
+        // 添加回车键转换功能
+        document.getElementById('input-config').addEventListener('keydown', function(e) {
+            if (e.ctrlKey && e.key === 'Enter') {
+                convertConfig();
+            }
+        });
+    </script>
+</body>
+</html>
