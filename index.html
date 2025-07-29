@@ -203,6 +203,7 @@
             <button class="convert-btn" onclick="convertConfig()">🔄 转换配置</button>
             <button class="clear-btn" onclick="clearAll()">🗑️ 清空</button>
             <button class="copy-btn" onclick="copyResult()">📋 复制结果</button>
+            <button class="copy-btn" onclick="testSS()" style="background: #FF9800;">🧪 测试SS</button>
         </div>
         
         <div id="message"></div>
@@ -348,39 +349,51 @@
         }
 
         function parseShadowsocks(url) {
-            const parsed = parseURL(url);
-            let method, password;
-            
-            if (parsed.password) {
-                // 格式: ss://method:password@server:port
-                method = parsed.username;
-                password = parsed.password;
-            } else {
-                // 格式: ss://base64(method:password)@server:port
-                try {
-                    const userInfo = atob(parsed.username);
+            try {
+                // 手动解析 SS URL，因为标准 URL 解析可能有问题
+                const ssMatch = url.match(/^ss:\/\/([^@]+)@([^:]+):(\d+)(?:#(.*))?$/);
+                if (!ssMatch) {
+                    throw new Error('Shadowsocks URL 格式错误');
+                }
+                
+                const [, userInfo, server, port, name] = ssMatch;
+                let method, password;
+                
+                // 检查 userInfo 是否包含冒号（明文格式）
+                if (userInfo.includes(':')) {
+                    // 格式: method:password (明文)
                     const colonIndex = userInfo.indexOf(':');
-                    if (colonIndex === -1) {
-                        throw new Error('Shadowsocks 用户信息格式错误');
-                    }
                     method = userInfo.substring(0, colonIndex);
                     password = userInfo.substring(colonIndex + 1);
-                } catch (e) {
-                    throw new Error('Shadowsocks base64 解码失败: ' + e.message);
+                } else {
+                    // 格式: base64(method:password)
+                    try {
+                        const decoded = atob(userInfo);
+                        const colonIndex = decoded.indexOf(':');
+                        if (colonIndex === -1) {
+                            throw new Error('解码后的用户信息格式错误');
+                        }
+                        method = decoded.substring(0, colonIndex);
+                        password = decoded.substring(colonIndex + 1);
+                    } catch (e) {
+                        throw new Error('Base64 解码失败: ' + e.message);
+                    }
                 }
-            }
 
-            return {
-                protocol: "shadowsocks",
-                settings: {
-                    servers: [{
-                        address: parsed.hostname,
-                        port: parseInt(parsed.port),
-                        method: method,
-                        password: password
-                    }]
-                }
-            };
+                return {
+                    protocol: "shadowsocks",
+                    settings: {
+                        servers: [{
+                            address: server,
+                            port: parseInt(port),
+                            method: method,
+                            password: password
+                        }]
+                    }
+                };
+            } catch (e) {
+                throw new Error('Shadowsocks 解析失败: ' + e.message);
+            }
         }
 
         function parseTrojan(url) {
@@ -519,6 +532,13 @@
             output.select();
             document.execCommand('copy');
             showMessage('配置已复制到剪贴板！');
+        }
+
+        // 测试SS配置
+        function testSS() {
+            const testConfig = 'ss://YWVzLTEyOC1nY206c2hhZG93c29ja3M=@212.102.53.194:443#🇬🇧[openproxylist.com] ss-GB';
+            document.getElementById('input-config').value = testConfig;
+            convertConfig();
         }
 
         // 示例配置按钮
