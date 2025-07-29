@@ -351,15 +351,23 @@
             const parsed = parseURL(url);
             let method, password;
             
-            if (parsed.username && parsed.password) {
+            if (parsed.password) {
+                // 格式: ss://method:password@server:port
                 method = parsed.username;
                 password = parsed.password;
             } else {
-                // 处理 ss://method:password@server:port 格式
-                const userInfo = atob(parsed.username);
-                const [m, p] = userInfo.split(':');
-                method = m;
-                password = p;
+                // 格式: ss://base64(method:password)@server:port
+                try {
+                    const userInfo = atob(parsed.username);
+                    const colonIndex = userInfo.indexOf(':');
+                    if (colonIndex === -1) {
+                        throw new Error('Shadowsocks 用户信息格式错误');
+                    }
+                    method = userInfo.substring(0, colonIndex);
+                    password = userInfo.substring(colonIndex + 1);
+                } catch (e) {
+                    throw new Error('Shadowsocks base64 解码失败: ' + e.message);
+                }
             }
 
             return {
